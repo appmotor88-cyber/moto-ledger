@@ -368,4 +368,386 @@ async function authSubmit(){
         showAuthError(err.message || "Could not create account.");
         btn.disabled = false;
         return;
- 
+      }
+      const uid = cred.user.uid;
+      try{
+        const codeRef = db.collection("activationCodes").doc(code);
+        const codeSnap = await codeRef.get();
+        if(!codeSnap.exists || codeSnap.data().used){
+          showAuthError("Invalid or already-used activation code.");
+          await cred.user.delete();
+          btn.disabled = false;
+          return;
+        }
+        await db.collection("users").doc(uid).set({
+          email: email,
+          active: true,
+          activationCode: code,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await codeRef.update({
+          used: true,
+          usedBy: uid,
+          usedByEmail: email,
+          usedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(err){
+        showAuthError(err.message || "Signup failed.");
+        try{ await cred.user.delete(); }catch(e2){}
+        btn.disabled = false;
+        return;
+      }
+    }
+  } catch(err){
+    showAuthError(err.message || "Something went wrong.");
+  }
+  btn.disabled = false;
+}
+
+function doLogout(){
+  if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(function(user){
+  if(user){
+    currentUser = user;
+    motorsCollection = db.collection("users").doc(user.uid).collection("motors");
+    document.getElementById("authOverlay").classList.remove("open");
+    document.getElementById("appRoot").style.display = "block";
+    if(user.email === ADMIN_EMAIL){
+      document.getElementById("adminPanel").style.display = "block";
+      loadCodesList();
+    } else {
+      document.getElementById("adminPanel").style.display = "none";
+    }
+    listenMotors();
+  } else {
+    currentUser = null;
+    motors = [];
+    if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+    document.getElementById("appRoot").style.display = "none";
+    document.getElementById("authOverlay").classList.add("open");
+  }
+});
+
+function listenMotors(){
+  unsubscribeMotors = motorsCollection.onSnapshot(function(snap){
+    motors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, function(err){
+    console.error("Firestore listen error", err);
+  });
+}
+
+let motors = [];
+let currentTab = null;
+let currentPhoto = "";
+let expCounter = 0;
+
+function formatNumberInput(e){
+  const el = e.target;
+  const raw = el.value.replace(/\D/g,"");
+  el.value = raw === "" ? "" : Number(raw).toLocaleString("id-ID");
+}
+function parseAmount(id){ return document.getElementById(id).value.replace(/\D/g,""); }
+
+function handlePhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxW = 500;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      currentPhoto = canvas.toDataURL("image/jpeg", 0.7);
+      const prev = document.getElementById("photoPreview");
+      prev.src = currentPhoto; prev.style.display = "block";
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleSoldFields(){
+  document.getElementById("soldFields").classList.toggle("show", document.getElementById("soldCheck").checked);
+}
+
+function addExpenseRow(name, amount){
+  expCounter++;
+  const id = "exp"+expCounter;
+  const wrap = document.createElement("div");
+  wrap.className = "exp-row";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <input placeholder="Expense name (e.g. Insurance)" class="exp-name" value="${name?String(name).replace(/"/g,'&quot;'):''}">
+    <input placeholder="Amount" class="exp-amt" inputmode="numeric" value="${amount?Number(amount).toLocaleString('id-ID'):''}" oninput="formatNumberInput(event)">
+    <button type="button" class="rm" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  document.getElementById("expList").appendChild(wrap);
+}
+function readExpenses(){
+  return Array.from(document.querySelectorAll("#expList .exp-row")).map(row=>{
+    const name = row.querySelector(".exp-name").value.trim();
+    const amount = row.querySelector(".exp-amt").value.replace(/\D/g,"");
+    return {name, amount};
+  }).filter(x=>x.name || x.amount);
+}
+
+function setTab(tab){
+  currentTab = (currentTab === tab) ? null : tab;
+  document.getElementById("tabUnsold").classList.toggle("active", currentTab==="unsold");
+  document.getElementById("tabSold").classList.toggle("active", currentTab==="sold");
+  render();
+}
+
+function fmt(n){ n = Number(n)||0; return n.toLocaleString("id-ID"); }
+function fmtDate(d){
+  if(!d) return "-";
+  const p = d.split("-");
+  return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+}
+function costTotal(m){
+  const exp = (m.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
+  return (Number(m.buyPrice)||0) + exp;
+}
+function isSold(m){ return !!m.sold; }
+function profit(m){
+  if(!isSold(m) || m.sellPrice==="" || m.sellPrice==null) return null;
+  return Number(m.sellPrice) - costTotal(m);
+}
+function profitPct(m){
+  const p = profit(m); const c = costTotal(m);
+  if(p===null || !c) return null;
+  return (p/c)*100;
+}
+function holdingDays(m){
+  if(!m.buyDate || !m.sellDate) return null;
+  const d1 = new Date(m.buyDate), d2 = new Date(m.sellDate);
+  const diff = Math.round((d2-d1)/86400000);
+  return diff>=0 ? diff : null;
+}
+
+function toggleChart(){
+  const wrap = document.getElementById("chartWrap");
+  wrap.classList.toggle("show");
+  if(wrap.classList.contains("show")) renderChart();
+}
+function renderChart(){
+  const byMonth = {};
+  motors.forEach(m=>{
+    const p = profit(m);
+    if(p===null || !m.sellDate) return;
+    const key = m.sellDate.slice(0,7);
+    byMonth[key] = (byMonth[key]||0) + p;
+  });
+  const keys = Object.keys(byMonth).sort();
+  const wrap = document.getElementById("chartWrap");
+  if(keys.length===0){ wrap.innerHTML = '<div class="empty">No sold motorcycles yet</div>'; return; }
+  const maxAbs = Math.max(...keys.map(k=>Math.abs(byMonth[k])), 1);
+  wrap.innerHTML = '<div style="font-weight:700; font-size:.85rem;">Monthly Profit / Loss</div>' +
+    keys.map(k=>{
+      const v = byMonth[k];
+      const pct = Math.min(100, Math.abs(v)/maxAbs*100);
+      return `<div class="chart-row">
+        <div class="chart-label">${k}</div>
+        <div class="chart-bar-bg"><div class="chart-bar ${v<0?'neg':''}" style="width:${pct}%"></div></div>
+        <div class="chart-val">${v<0?'-':''}${fmt(Math.abs(v))}</div>
+      </div>`;
+    }).join("");
+}
+
+function render(){
+  const soldCount = motors.filter(isSold).length;
+  document.getElementById("countSold").textContent = soldCount;
+  document.getElementById("countUnsold").textContent = motors.length - soldCount;
+  document.getElementById("statCount").textContent = motors.length;
+  const totalProfit = motors.reduce((s,m)=>s+(profit(m)||0),0);
+  const statEl = document.getElementById("statProfit");
+  statEl.textContent = (totalProfit<0?"-":"") + fmt(Math.abs(totalProfit));
+  statEl.style.color = totalProfit>=0 ? "var(--profit)" : "var(--loss)";
+
+  const list = document.getElementById("list");
+  if(currentTab === null){ list.innerHTML = ""; return; }
+
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  let filtered = motors.filter(m=>{
+    const matchTab = currentTab === "sold" ? isSold(m) : !isSold(m);
+    if(!matchTab) return false;
+    if(!q) return true;
+    return (m.plate||"").toLowerCase().includes(q) || (m.model||"").toLowerCase().includes(q);
+  });
+
+  const sortBy = document.getElementById("sortBox").value;
+  filtered.sort((a,b)=>{
+    if(sortBy==="buyDate") return (b.buyDate||"").localeCompare(a.buyDate||"");
+    if(sortBy==="sellDate") return (b.sellDate||"").localeCompare(a.sellDate||"");
+    if(sortBy==="profitDesc") return (profit(b)||-Infinity)-(profit(a)||-Infinity);
+    if(sortBy==="profitAsc") return (profit(a)||Infinity)-(profit(b)||Infinity);
+    return 0; // newest = original array order (reversed below)
+  });
+  if(sortBy==="newest") filtered = filtered.slice().reverse();
+
+  if(filtered.length === 0){
+    list.innerHTML = `<div class="empty">${q ? "No matches found" : (currentTab==="sold" ? "No motorcycles sold yet" : "No unsold motorcycles")}</div>`;
+  } else {
+    list.innerHTML = filtered.map(m=>{
+      const sold = isSold(m);
+      const p = profit(m);
+      const pct = profitPct(m);
+      const days = holdingDays(m);
+      let profitHtml = '<div class="profit-line" style="color:var(--muted)">Not sold yet</div>';
+      if(sold){
+        profitHtml = p===null
+          ? '<div class="profit-line" style="color:var(--muted)">Sold — sale price not recorded</div>'
+          : `<div class="profit-line ${p>=0?'p':'l'}">${p>=0?'Profit':'Loss'}: ${fmt(Math.abs(p))} IDR${pct!==null?` (${pct>=0?'':''}${pct.toFixed(1)}%)`:''}${days!==null?` · held ${days}d`:''}</div>`;
+      }
+      const expLines = (m.expenses||[]).filter(e=>Number(e.amount)).map(e=>`<div class="exp-line">${e.name||'Expense'}: ${fmt(e.amount)}</div>`).join("");
+      return `
+      <div class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            ${m.photo ? `<img class="thumb" src="${m.photo}">` : ''}
+            <div>
+              <div class="card-title">${m.model || "No model"}</div>
+              <div class="card-sub">Plate: ${m.plate || "-"}</div>
+            </div>
+          </div>
+          <span class="badge ${sold?'sold':''}">${sold?'Sold':'Available'}</span>
+        </div>
+        <div class="card-body">
+          <div><span>Purchase Date: </span>${fmtDate(m.buyDate)}</div>
+          <div><span>Purchase Price: </span>${fmt(m.buyPrice)}</div>
+          ${m.fromWhom?`<div><span>From: </span>${m.fromWhom}</div>`:''}
+          <div><span>Total Cost: </span>${fmt(costTotal(m))}</div>
+          <div><span>Sale Date: </span>${sold?fmtDate(m.sellDate):"-"}</div>
+          <div><span>Sale Price: </span>${sold && m.sellPrice ? fmt(m.sellPrice) : "-"}</div>
+          ${sold && m.toWhom?`<div><span>To: </span>${m.toWhom}</div>`:''}
+        </div>
+        ${expLines}
+        ${m.notes?`<div class="notes-line">${m.notes}</div>`:''}
+        ${profitHtml}
+        <div class="actions">
+          <button onclick="editItem('${m.id}')">Edit</button>
+          <button class="del" onclick="deleteItem('${m.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+}
+
+function openForm(){
+  document.getElementById("formTitle").textContent = "Add New Motorcycle";
+  document.getElementById("editId").value = "";
+  ["plate","model","fromWhom","buyDate","buyPrice","notes","toWhom","sellDate","sellPrice","cameraInput","galleryInput"].forEach(id=>{
+    document.getElementById(id).value = "";
+  });
+  currentPhoto = "";
+  document.getElementById("photoPreview").style.display = "none";
+  document.getElementById("expList").innerHTML = "";
+  document.getElementById("soldCheck").checked = false;
+  toggleSoldFields();
+  document.getElementById("overlay").classList.add("open");
+}
+function closeForm(){ document.getElementById("overlay").classList.remove("open"); }
+
+function editItem(id){
+  const m = motors.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById("formTitle").textContent = "Edit Motorcycle";
+  document.getElementById("editId").value = m.id;
+  document.getElementById("plate").value = m.plate || "";
+  document.getElementById("model").value = m.model || "";
+  document.getElementById("cameraInput").value = "";
+  document.getElementById("galleryInput").value = "";
+  currentPhoto = m.photo || "";
+  const prev = document.getElementById("photoPreview");
+  if(currentPhoto){ prev.src = currentPhoto; prev.style.display = "block"; } else { prev.style.display = "none"; }
+  document.getElementById("fromWhom").value = m.fromWhom || "";
+  document.getElementById("buyDate").value = m.buyDate || "";
+  document.getElementById("buyPrice").value = m.buyPrice ? Number(m.buyPrice).toLocaleString("id-ID") : "";
+  document.getElementById("expList").innerHTML = "";
+  (m.expenses||[]).forEach(e=>addExpenseRow(e.name, e.amount));
+  document.getElementById("notes").value = m.notes || "";
+  document.getElementById("toWhom").value = m.toWhom || "";
+  document.getElementById("sellDate").value = m.sellDate || "";
+  document.getElementById("sellPrice").value = m.sellPrice ? Number(m.sellPrice).toLocaleString("id-ID") : "";
+  document.getElementById("soldCheck").checked = !!m.sold;
+  toggleSoldFields();
+  document.getElementById("overlay").classList.add("open");
+}
+async function deleteItem(id){
+  if(!confirm("Delete this motorcycle?")) return;
+  try{ await motorsCollection.doc(id).delete(); }
+  catch(err){ alert("Delete failed: " + err.message); }
+}
+async function saveItem(){
+  const id = document.getElementById("editId").value;
+  const sold = document.getElementById("soldCheck").checked;
+  const data = {
+    plate: document.getElementById("plate").value.trim(),
+    model: document.getElementById("model").value.trim(),
+    photo: currentPhoto,
+    fromWhom: document.getElementById("fromWhom").value.trim(),
+    buyDate: document.getElementById("buyDate").value,
+    buyPrice: parseAmount("buyPrice"),
+    expenses: readExpenses(),
+    notes: document.getElementById("notes").value.trim(),
+    sold: sold,
+    toWhom: sold ? document.getElementById("toWhom").value.trim() : "",
+    sellDate: sold ? document.getElementById("sellDate").value : "",
+    sellPrice: sold ? parseAmount("sellPrice") : "",
+  };
+  try{
+    if(id){
+      await motorsCollection.doc(id).update(data);
+    } else {
+      await motorsCollection.add(data);
+    }
+    closeForm();
+  } catch(err){
+    alert("Save failed: " + err.message);
+  }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(motors, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "motorcycle-bookkeeping-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev){
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!Array.isArray(imported)) throw new Error("bad format");
+      let added = 0;
+      for(const m of imported){
+        const { id, ...rest } = m;
+        await motorsCollection.add(rest);
+        added++;
+      }
+      alert(added + " motorcycles imported.");
+    }catch(err){
+      alert("Import failed: " + (err.message || "invalid backup file."));
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+}
+
+render();
+</script>
+</body>
+</html>
