@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Motorcycle Bookkeeping</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f766e">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MotoLedger">
 <style>
 :root{
   --bg:#f5f5f4; --card:#fff; --text:#1c1917; --muted:#78716c;
@@ -16,13 +24,13 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#121110; --card:#1e1c1a; --text:#f5f5f4; --muted:#a39d97;
-    --border:#332f2c; --accent:#f59e0b; --accent2:#fb923c; --profit:#4ade80; --loss:#f87171;
+    --border:#332f2c; --accent:#2dd4bf; --accent2:#14b8a6; --profit:#4ade80; --loss:#f87171;
     --shadow:0 4px 16px rgba(0,0,0,.35); --shadow-lg:0 12px 32px rgba(0,0,0,.5);
   }
 }
 :root[data-theme="dark"]{
   --bg:#121110; --card:#1e1c1a; --text:#f5f5f4; --muted:#a39d97;
-  --border:#332f2c; --accent:#f59e0b; --accent2:#fb923c; --profit:#4ade80; --loss:#f87171;
+  --border:#332f2c; --accent:#2dd4bf; --accent2:#14b8a6; --profit:#4ade80; --loss:#f87171;
   --shadow:0 4px 16px rgba(0,0,0,.35); --shadow-lg:0 12px 32px rgba(0,0,0,.5);
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
@@ -748,6 +756,12 @@ function importData(e){
 }
 
 render();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
