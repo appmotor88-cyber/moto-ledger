@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Motorcycle Bookkeeping</title>
+<style>
+:root{
+  --bg:#f5f5f4; --card:#fff; --text:#1c1917; --muted:#78716c;
+  --border:#e7e5e4; --accent:#0f766e; --accent2:#0d9488;
+  --profit:#15803d; --loss:#b91c1c;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1c1917; --card:#292524; --text:#f5f5f4; --muted:#a8a29e;
+    --border:#3f3f3f; --accent:#2dd4bf; --accent2:#14b8a6; --profit:#4ade80; --loss:#f87171;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1c1917; --card:#292524; --text:#f5f5f4; --muted:#a8a29e;
+  --border:#3f3f3f; --accent:#2dd4bf; --accent2:#14b8a6; --profit:#4ade80; --loss:#f87171;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+*{box-sizing:border-box;}
+body{margin:0; height:100%; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));}
+h1{font-size:1.2rem; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+.summary{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;}
+.stat{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:10px 12px;}
+.stat .n{font-size:1.1rem; font-weight:700;}
+.stat .l{font-size:.75rem; color:var(--muted);}
+button{font-family:inherit; cursor:pointer; border:none; border-radius:10px; padding:10px 14px; font-size:.9rem;}
+.row2{display:flex; gap:8px; margin-bottom:10px;}
+.row2 button{flex:1; background:var(--card); border:1px solid var(--border); color:var(--text); font-size:.8rem;}
+.btn-main{background:var(--accent); color:#fff; width:100%; margin-bottom:10px; font-weight:600;}
+.search-row{display:flex; gap:8px; margin-bottom:10px;}
+.search-row input, .search-row select{flex:1; padding:9px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:.85rem; font-family:inherit;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:10px;}
+.card-top{display:flex; justify-content:space-between; align-items:center;}
+.card-top-left{display:flex; align-items:center; gap:10px;}
+.thumb{width:48px; height:48px; border-radius:10px; object-fit:cover; background:var(--border); flex-shrink:0;}
+.card-title{font-weight:700;}
+.card-sub{font-size:.8rem; color:var(--muted); margin-top:2px;}
+.badge{font-size:.7rem; padding:3px 8px; border-radius:99px; background:var(--border);}
+.badge.sold{background:var(--accent2); color:#fff;}
+.card-body{margin-top:8px; font-size:.85rem; display:grid; grid-template-columns:1fr 1fr; gap:4px 10px;}
+.card-body div span{color:var(--muted);}
+.exp-line{font-size:.8rem; color:var(--muted); margin-top:2px;}
+.notes-line{font-size:.8rem; margin-top:6px; font-style:italic; color:var(--muted);}
+.profit-line{margin-top:8px; font-weight:700; font-size:.95rem;}
+.profit-line.p{color:var(--profit);} .profit-line.l{color:var(--loss);}
+.actions{display:flex; gap:8px; margin-top:10px;}
+.actions button{flex:1; background:var(--border); color:var(--text); font-size:.8rem;}
+.actions button.del{background:transparent; color:var(--loss); border:1px solid var(--loss);}
+.empty{text-align:center; color:var(--muted); padding:30px 10px; font-size:.9rem;}
+.tabs{display:flex; gap:8px; margin-bottom:12px;}
+.tab-btn{flex:1; background:var(--card); border:1px solid var(--border); color:var(--muted); font-weight:600; padding:9px;}
+.tab-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:flex-end; justify-content:center; z-index:10;}
+.overlay.open{display:flex;}
+.sheet{background:var(--card); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); max-height:88vh; overflow-y:auto;}
+.sheet h2{margin:0 0 12px; font-size:1.05rem;}
+label{display:block; font-size:.8rem; color:var(--muted); margin:10px 0 4px;}
+input, textarea, select{width:100%; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:.9rem; font-family:inherit;}
+textarea{resize:vertical; min-height:60px;}
+.sold-toggle{display:flex; align-items:center; gap:8px; margin-top:14px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px;}
+.sold-toggle input{width:auto;}
+.sold-toggle label{margin:0; color:var(--text); font-weight:600; font-size:.85rem;}
+#soldFields{display:none;} #soldFields.show{display:block;}
+.sheet-actions{display:flex; gap:8px; margin-top:16px;}
+.sheet-actions button{flex:1;}
+.save{background:var(--accent); color:#fff; font-weight:600;}
+.cancel{background:var(--border); color:var(--text);}
+.exp-row{display:flex; gap:6px; margin-top:6px; align-items:center;}
+.exp-row input{flex:1;}
+.exp-row .rm{background:transparent; color:var(--loss); border:1px solid var(--loss); padding:8px 10px; flex:0 0 auto;}
+.add-exp{background:var(--border); color:var(--text); width:100%; margin-top:8px; font-size:.8rem;}
+.chart-wrap{display:none; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:12px 14px; margin-bottom:10px;}
+.chart-wrap.show{display:block;}
+.chart-row{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:.78rem;}
+.chart-label{width:64px; color:var(--muted); flex-shrink:0;}
+.chart-bar-bg{flex:1; background:var(--border); border-radius:6px; overflow:hidden; height:16px;}
+.chart-bar{height:100%; background:var(--accent2);}
+.chart-bar.neg{background:var(--loss);}
+.chart-val{width:80px; text-align:right; flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<div id="debugBanner" style="display:none; position:fixed; top:0; left:0; right:0; z-index:999; background:#b91c1c; color:#fff; padding:12px; font-size:.8rem; word-break:break-word;"></div>
+<script>
+window.onerror = function(msg, src, line){
+  const b = document.getElementById("debugBanner");
+  b.style.display = "block";
+  b.textContent = "Error: " + msg + " (line " + line + ")";
+  return false;
+};
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<div class="overlay open" id="authOverlay" style="background:var(--bg); position:fixed; align-items:center;">
+  <div class="sheet" style="max-width:380px; border-radius:18px;">
+    <h2 id="authTitle">🏍️ Login</h2>
+    <div id="authError" style="display:none; background:#fee2e2; color:#b91c1c; padding:8px 10px; border-radius:8px; font-size:.8rem; margin-bottom:8px;"></div>
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email">
+    <label>Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password">
+    <div id="authCodeWrap" style="display:none;">
+      <label>Activation Code</label>
+      <input id="authCode" autocomplete="off">
+    </div>
+    <div class="sheet-actions">
+      <button class="save" id="authSubmitBtn" onclick="authSubmit()" style="width:100%;">Login</button>
+    </div>
+    <div style="text-align:center; margin-top:10px; font-size:.85rem;">
+      <a href="#" id="authToggleLink" onclick="authToggleMode();return false;" style="color:var(--accent);">Don't have an account? Sign up</a>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+  <h1 style="margin-bottom:0;">🏍️ Motorcycle Bookkeeping</h1>
+  <button onclick="doLogout()" style="background:var(--border); color:var(--text); font-size:.75rem; padding:6px 10px;">Logout</button>
+</div>
+
+<div class="card" id="adminPanel" style="display:none;">
+  <div style="font-weight:700; margin-bottom:8px;">🔑 Admin: Activation Codes</div>
+  <button onclick="generateCode()" style="background:var(--accent); color:#fff; width:100%; margin-bottom:8px;">+ Generate New Code</button>
+  <div id="newCodeBox" style="display:none; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; text-align:center;">
+    <div style="font-size:1.1rem; font-weight:700; letter-spacing:1px;" id="newCodeText"></div>
+    <button onclick="copyNewCode()" style="margin-top:6px; background:var(--border); color:var(--text); font-size:.75rem;">Copy</button>
+  </div>
+  <div id="codesList" style="font-size:.8rem;"></div>
+</div>
+
+<div class="summary">
+  <div class="stat"><div class="n" id="statProfit">0</div><div class="l">Total Profit / Loss (IDR)</div></div>
+  <div class="stat"><div class="n" id="statCount">0</div><div class="l">Total Motorcycles</div></div>
+</div>
+
+<button class="btn-main" onclick="openForm()">+ Add New Motorcycle</button>
+
+<div class="row2">
+  <button onclick="toggleChart()">📊 Monthly Chart</button>
+  <button onclick="exportData()">⬆️ Export</button>
+  <button onclick="document.getElementById('importInput').click()">⬇️ Import</button>
+</div>
+<input id="importInput" type="file" accept="application/json" style="display:none;" onchange="importData(event)">
+
+<div class="chart-wrap" id="chartWrap"></div>
+
+<div class="search-row">
+  <input id="searchBox" placeholder="🔍 Search plate or model" oninput="render()">
+  <select id="sortBox" onchange="render()">
+    <option value="newest">Newest</option>
+    <option value="buyDate">Purchase Date</option>
+    <option value="sellDate">Sale Date</option>
+    <option value="profitDesc">Profit (high→low)</option>
+    <option value="profitAsc">Profit (low→high)</option>
+  </select>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn" id="tabUnsold" onclick="setTab('unsold')">Unsold (<span id="countUnsold">0</span>)</button>
+  <button class="tab-btn" id="tabSold" onclick="setTab('sold')">Sold (<span id="countSold">0</span>)</button>
+</div>
+
+<div id="list"></div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="formTitle">Add New Motorcycle</h2>
+    <input type="hidden" id="editId">
+
+    <label>Plate Number</label>
+    <input id="plate" placeholder="e.g. B 1234 XYZ" autocomplete="off">
+
+    <label>Motorcycle Type / Model</label>
+    <input id="model" placeholder="e.g. Honda Beat" autocomplete="off">
+
+    <label>Photo</label>
+    <div style="display:flex; gap:8px;">
+      <div style="position:relative; flex:1; border-radius:10px; overflow:hidden;">
+        <div style="background:var(--border); color:var(--text); border-radius:10px; padding:10px 14px; font-size:.9rem; text-align:center;">📷 Camera</div>
+        <input id="cameraInput" type="file" accept="image/*" capture="environment" style="position:absolute; inset:0; width:100%; height:100%; opacity:0;" onchange="handlePhoto(event)">
+      </div>
+      <div style="position:relative; flex:1; border-radius:10px; overflow:hidden;">
+        <div style="background:var(--border); color:var(--text); border-radius:10px; padding:10px 14px; font-size:.9rem; text-align:center;">🖼️ Gallery</div>
+        <input id="galleryInput" type="file" accept="image/*" style="position:absolute; inset:0; width:100%; height:100%; opacity:0;" onchange="handlePhoto(event)">
+      </div>
+    </div>
+    <img id="photoPreview" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:10px; margin-top:8px;">
+
+    <label>Purchased From (optional)</label>
+    <input id="fromWhom" placeholder="Seller name" autocomplete="off">
+
+    <label>Purchase Date</label>
+    <input id="buyDate" type="date">
+
+    <label>Purchase Price (IDR)</label>
+    <input id="buyPrice" type="text" inputmode="numeric" autocomplete="off" oninput="formatNumberInput(event)">
+
+    <label>Other Expenses</label>
+    <div id="expList"></div>
+    <button type="button" class="add-exp" onclick="addExpenseRow()">+ Add Expense</button>
+
+    <label>Notes</label>
+    <textarea id="notes" placeholder="Any notes about this motorcycle..."></textarea>
+
+    <div class="sold-toggle">
+      <input type="checkbox" id="soldCheck" onchange="toggleSoldFields()">
+      <label for="soldCheck">This motorcycle has been sold</label>
+    </div>
+
+    <div id="soldFields">
+      <label>Buyer Name (optional)</label>
+      <input id="toWhom" placeholder="Buyer name" autocomplete="off">
+      <label>Sale Date</label>
+      <input id="sellDate" type="date">
+      <label>Sale Price (IDR)</label>
+      <input id="sellPrice" type="text" inputmode="numeric" autocomplete="off" oninput="formatNumberInput(event)">
+    </div>
+
+    <div class="sheet-actions">
+      <button class="cancel" onclick="closeForm()">Cancel</button>
+      <button class="save" onclick="saveItem()">Save</button>
+    </div>
+  </div>
+</div>
+</div><!-- /appRoot -->
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyADSTyXZJHZbbExG415iGpV3CFld0hKFY0",
+  authDomain: "moto-ledger.firebaseapp.com",
+  projectId: "moto-ledger",
+  storageBucket: "moto-ledger.firebasestorage.app",
+  messagingSenderId: "858295382904",
+  appId: "1:858295382904:web:2105a9588575fa65e80e8d"
+};
+let auth, db;
+try{
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+} catch(err){
+  const b = document.getElementById("debugBanner");
+  b.style.display = "block";
+  b.textContent = "Firebase init failed: " + err.message;
+}
+
+let currentUser = null;
+let motorsCollection = null;
+let unsubscribeMotors = null;
+let authMode = "login"; // or "signup"
+
+const ADMIN_EMAIL = "appmotor88@gmail.com";
+
+function generateRandomCode(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 to avoid confusion
+  let code = "";
+  for(let i=0;i<8;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+
+async function generateCode(){
+  const code = generateRandomCode();
+  try{
+    await db.collection("activationCodes").doc(code).set({
+      used: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById("newCodeText").textContent = code;
+    document.getElementById("newCodeBox").style.display = "block";
+    loadCodesList();
+  } catch(err){
+    alert("Failed to generate code: " + err.message);
+  }
+}
+
+function copyNewCode(){
+  const text = document.getElementById("newCodeText").textContent;
+  navigator.clipboard.writeText(text).then(()=> alert("Copied: " + text));
+}
+
+async function loadCodesList(){
+  const box = document.getElementById("codesList");
+  box.innerHTML = "Loading...";
+  try{
+    const snap = await db.collection("activationCodes").orderBy("createdAt","desc").limit(20).get();
+    if(snap.empty){ box.innerHTML = '<div style="color:var(--muted);">No codes yet.</div>'; return; }
+    box.innerHTML = snap.docs.map(d=>{
+      const v = d.data();
+      const status = v.used ? `used by ${v.usedByEmail||'?'}` : "unused";
+      return `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+        <span>${d.id}</span><span style="color:${v.used?'var(--muted)':'var(--profit)'}">${status}</span>
+      </div>`;
+    }).join("");
+  } catch(err){
+    box.innerHTML = '<div style="color:var(--loss);">Failed to load codes.</div>';
+  }
+}
+
+function authToggleMode(){
+  authMode = authMode === "login" ? "signup" : "login";
+  document.getElementById("authTitle").textContent = authMode === "login" ? "🏍️ Login" : "🏍️ Sign Up";
+  document.getElementById("authSubmitBtn").textContent = authMode === "login" ? "Login" : "Sign Up";
+  document.getElementById("authCodeWrap").style.display = authMode === "signup" ? "block" : "none";
+  document.getElementById("authToggleLink").textContent = authMode === "login" ? "Don't have an account? Sign up" : "Already have an account? Login";
+  document.getElementById("authError").style.display = "none";
+}
+
+function showAuthError(msg){
+  const el = document.getElementById("authError");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+async function authSubmit(){
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const code = document.getElementById("authCode").value.trim();
+  document.getElementById("authError").style.display = "none";
+  if(!email || !password){ showAuthError("Please enter email and password."); return; }
+  const btn = document.getElementById("authSubmitBtn");
+  btn.disabled = true;
+  try{
+    if(authMode === "login"){
+      await auth.signInWithEmailAndPassword(email, password);
+    } else {
+      if(!code){ showAuthError("Please enter your activation code."); btn.disabled=false; return; }
+      let cred;
+      try{
+        cred = await auth.createUserWithEmailAndPassword(email, password);
+      } catch(err){
+        showAuthError(err.message || "Could not create account.");
+        btn.disabled = false;
+        return;
+      }
+      const uid = cred.user.uid;
+      try{
+        const codeRef = db.collection("activationCodes").doc(code);
+        const codeSnap = await codeRef.get();
+        if(!codeSnap.exists || codeSnap.data().used){
+          showAuthError("Invalid or already-used activation code.");
+          await cred.user.delete();
+          btn.disabled = false;
+          return;
+        }
+        await db.collection("users").doc(uid).set({
+          email: email,
+          active: true,
+          activationCode: code,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await codeRef.update({
+          used: true,
+          usedBy: uid,
+          usedByEmail: email,
+          usedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(err){
+        showAuthError(err.message || "Signup failed.");
+        try{ await cred.user.delete(); }catch(e2){}
+        btn.disabled = false;
+        return;
+      }
+    }
+  } catch(err){
+    showAuthError(err.message || "Something went wrong.");
+  }
+  btn.disabled = false;
+}
+
+function doLogout(){
+  if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(function(user){
+  if(user){
+    currentUser = user;
+    motorsCollection = db.collection("users").doc(user.uid).collection("motors");
+    document.getElementById("authOverlay").classList.remove("open");
+    document.getElementById("appRoot").style.display = "block";
+    if(user.email === ADMIN_EMAIL){
+      document.getElementById("adminPanel").style.display = "block";
+      loadCodesList();
+    } else {
+      document.getElementById("adminPanel").style.display = "none";
+    }
+    listenMotors();
+  } else {
+    currentUser = null;
+    motors = [];
+    if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+    document.getElementById("appRoot").style.display = "none";
+    document.getElementById("authOverlay").classList.add("open");
+  }
+});
+
+function listenMotors(){
+  unsubscribeMotors = motorsCollection.onSnapshot(function(snap){
+    motors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, function(err){
+    console.error("Firestore listen error", err);
+  });
+}
+
+let motors = [];
+let currentTab = null;
+let currentPhoto = "";
+let expCounter = 0;
+
+function formatNumberInput(e){
+  const el = e.target;
+  const raw = el.value.replace(/\D/g,"");
+  el.value = raw === "" ? "" : Number(raw).toLocaleString("id-ID");
+}
+function parseAmount(id){ return document.getElementById(id).value.replace(/\D/g,""); }
+
+function handlePhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxW = 500;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      currentPhoto = canvas.toDataURL("image/jpeg", 0.7);
+      const prev = document.getElementById("photoPreview");
+      prev.src = currentPhoto; prev.style.display = "block";
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleSoldFields(){
+  document.getElementById("soldFields").classList.toggle("show", document.getElementById("soldCheck").checked);
+}
+
+function addExpenseRow(name, amount){
+  expCounter++;
+  const id = "exp"+expCounter;
+  const wrap = document.createElement("div");
+  wrap.className = "exp-row";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <input placeholder="Expense name (e.g. Insurance)" class="exp-name" value="${name?String(name).replace(/"/g,'&quot;'):''}">
+    <input placeholder="Amount" class="exp-amt" inputmode="numeric" value="${amount?Number(amount).toLocaleString('id-ID'):''}" oninput="formatNumberInput(event)">
+    <button type="button" class="rm" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  document.getElementById("expList").appendChild(wrap);
+}
+function readExpenses(){
+  return Array.from(document.querySelectorAll("#expList .exp-row")).map(row=>{
+    const name = row.querySelector(".exp-name").value.trim();
+    const amount = row.querySelector(".exp-amt").value.replace(/\D/g,"");
+    return {name, amount};
+  }).filter(x=>x.name || x.amount);
+}
+
+function setTab(tab){
+  currentTab = (currentTab === tab) ? null : tab;
+  document.getElementById("tabUnsold").classList.toggle("active", currentTab==="unsold");
+  document.getElementById("tabSold").classList.toggle("active", currentTab==="sold");
+  render();
+}
+
+function fmt(n){ n = Number(n)||0; return n.toLocaleString("id-ID"); }
+function fmtDate(d){
+  if(!d) return "-";
+  const p = d.split("-");
+  return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : d;
+}
+function costTotal(m){
+  const exp = (m.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
+  return (Number(m.buyPrice)||0) + exp;
+}
+function isSold(m){ return !!m.sold; }
+function profit(m){
+  if(!isSold(m) || m.sellPrice==="" || m.sellPrice==null) return null;
+  return Number(m.sellPrice) - costTotal(m);
+}
+function profitPct(m){
+  const p = profit(m); const c = costTotal(m);
+  if(p===null || !c) return null;
+  return (p/c)*100;
+}
+function holdingDays(m){
+  if(!m.buyDate || !m.sellDate) return null;
+  const d1 = new Date(m.buyDate), d2 = new Date(m.sellDate);
+  const diff = Math.round((d2-d1)/86400000);
+  return diff>=0 ? diff : null;
+}
+
+function toggleChart(){
+  const wrap = document.getElementById("chartWrap");
+  wrap.classList.toggle("show");
+  if(wrap.classList.contains("show")) renderChart();
+}
+function renderChart(){
+  const byMonth = {};
+  motors.forEach(m=>{
+    const p = profit(m);
+    if(p===null || !m.sellDate) return;
+    const key = m.sellDate.slice(0,7);
+    byMonth[key] = (byMonth[key]||0) + p;
+  });
+  const keys = Object.keys(byMonth).sort();
+  const wrap = document.getElementById("chartWrap");
+  if(keys.length===0){ wrap.innerHTML = '<div class="empty">No sold motorcycles yet</div>'; return; }
+  const maxAbs = Math.max(...keys.map(k=>Math.abs(byMonth[k])), 1);
+  wrap.innerHTML = '<div style="font-weight:700; font-size:.85rem;">Monthly Profit / Loss</div>' +
+    keys.map(k=>{
+      const v = byMonth[k];
+      const pct = Math.min(100, Math.abs(v)/maxAbs*100);
+      return `<div class="chart-row">
+        <div class="chart-label">${k}</div>
+        <div class="chart-bar-bg"><div class="chart-bar ${v<0?'neg':''}" style="width:${pct}%"></div></div>
+        <div class="chart-val">${v<0?'-':''}${fmt(Math.abs(v))}</div>
+      </div>`;
+    }).join("");
+}
+
+function render(){
+  const soldCount = motors.filter(isSold).length;
+  document.getElementById("countSold").textContent = soldCount;
+  document.getElementById("countUnsold").textContent = motors.length - soldCount;
+  document.getElementById("statCount").textContent = motors.length;
+  const totalProfit = motors.reduce((s,m)=>s+(profit(m)||0),0);
+  const statEl = document.getElementById("statProfit");
+  statEl.textContent = (totalProfit<0?"-":"") + fmt(Math.abs(totalProfit));
+  statEl.style.color = totalProfit>=0 ? "var(--profit)" : "var(--loss)";
+
+  const list = document.getElementById("list");
+  if(currentTab === null){ list.innerHTML = ""; return; }
+
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  let filtered = motors.filter(m=>{
+    const matchTab = currentTab === "sold" ? isSold(m) : !isSold(m);
+    if(!matchTab) return false;
+    if(!q) return true;
+    return (m.plate||"").toLowerCase().includes(q) || (m.model||"").toLowerCase().includes(q);
+  });
+
+  const sortBy = document.getElementById("sortBox").value;
+  filtered.sort((a,b)=>{
+    if(sortBy==="buyDate") return (b.buyDate||"").localeCompare(a.buyDate||"");
+    if(sortBy==="sellDate") return (b.sellDate||"").localeCompare(a.sellDate||"");
+    if(sortBy==="profitDesc") return (profit(b)||-Infinity)-(profit(a)||-Infinity);
+    if(sortBy==="profitAsc") return (profit(a)||Infinity)-(profit(b)||Infinity);
+    return 0; // newest = original array order (reversed below)
+  });
+  if(sortBy==="newest") filtered = filtered.slice().reverse();
+
+  if(filtered.length === 0){
+    list.innerHTML = `<div class="empty">${q ? "No matches found" : (currentTab==="sold" ? "No motorcycles sold yet" : "No unsold motorcycles")}</div>`;
+  } else {
+    list.innerHTML = filtered.map(m=>{
+      const sold = isSold(m);
+      const p = profit(m);
+      const pct = profitPct(m);
+      const days = holdingDays(m);
+      let profitHtml = '<div class="profit-line" style="color:var(--muted)">Not sold yet</div>';
+      if(sold){
+        profitHtml = p===null
+          ? '<div class="profit-line" style="color:var(--muted)">Sold — sale price not recorded</div>'
+          : `<div class="profit-line ${p>=0?'p':'l'}">${p>=0?'Profit':'Loss'}: ${fmt(Math.abs(p))} IDR${pct!==null?` (${pct>=0?'':''}${pct.toFixed(1)}%)`:''}${days!==null?` · held ${days}d`:''}</div>`;
+      }
+      const expLines = (m.expenses||[]).filter(e=>Number(e.amount)).map(e=>`<div class="exp-line">${e.name||'Expense'}: ${fmt(e.amount)}</div>`).join("");
+      return `
+      <div class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            ${m.photo ? `<img class="thumb" src="${m.photo}">` : ''}
+            <div>
+              <div class="card-title">${m.model || "No model"}</div>
+              <div class="card-sub">Plate: ${m.plate || "-"}</div>
+            </div>
+          </div>
+          <span class="badge ${sold?'sold':''}">${sold?'Sold':'Available'}</span>
+        </div>
+        <div class="card-body">
+          <div><span>Purchase Date: </span>${fmtDate(m.buyDate)}</div>
+          <div><span>Purchase Price: </span>${fmt(m.buyPrice)}</div>
+          ${m.fromWhom?`<div><span>From: </span>${m.fromWhom}</div>`:''}
+          <div><span>Total Cost: </span>${fmt(costTotal(m))}</div>
+          <div><span>Sale Date: </span>${sold?fmtDate(m.sellDate):"-"}</div>
+          <div><span>Sale Price: </span>${sold && m.sellPrice ? fmt(m.sellPrice) : "-"}</div>
+          ${sold && m.toWhom?`<div><span>To: </span>${m.toWhom}</div>`:''}
+        </div>
+        ${expLines}
+        ${m.notes?`<div class="notes-line">${m.notes}</div>`:''}
+        ${profitHtml}
+        <div class="actions">
+          <button onclick="editItem('${m.id}')">Edit</button>
+          <button class="del" onclick="deleteItem('${m.id}')">Delete</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+}
+
+function openForm(){
+  document.getElementById("formTitle").textContent = "Add New Motorcycle";
+  document.getElementById("editId").value = "";
+  ["plate","model","fromWhom","buyDate","buyPrice","notes","toWhom","sellDate","sellPrice","cameraInput","galleryInput"].forEach(id=>{
+    document.getElementById(id).value = "";
+  });
+  currentPhoto = "";
+  document.getElementById("photoPreview").style.display = "none";
+  document.getElementById("expList").innerHTML = "";
+  document.getElementById("soldCheck").checked = false;
+  toggleSoldFields();
+  document.getElementById("overlay").classList.add("open");
+}
+function closeForm(){ document.getElementById("overlay").classList.remove("open"); }
+
+function editItem(id){
+  const m = motors.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById("formTitle").textContent = "Edit Motorcycle";
+  document.getElementById("editId").value = m.id;
+  document.getElementById("plate").value = m.plate || "";
+  document.getElementById("model").value = m.model || "";
+  document.getElementById("cameraInput").value = "";
+  document.getElementById("galleryInput").value = "";
+  currentPhoto = m.photo || "";
+  const prev = document.getElementById("photoPreview");
+  if(currentPhoto){ prev.src = currentPhoto; prev.style.display = "block"; } else { prev.style.display = "none"; }
+  document.getElementById("fromWhom").value = m.fromWhom || "";
+  document.getElementById("buyDate").value = m.buyDate || "";
+  document.getElementById("buyPrice").value = m.buyPrice ? Number(m.buyPrice).toLocaleString("id-ID") : "";
+  document.getElementById("expList").innerHTML = "";
+  (m.expenses||[]).forEach(e=>addExpenseRow(e.name, e.amount));
+  document.getElementById("notes").value = m.notes || "";
+  document.getElementById("toWhom").value = m.toWhom || "";
+  document.getElementById("sellDate").value = m.sellDate || "";
+  document.getElementById("sellPrice").value = m.sellPrice ? Number(m.sellPrice).toLocaleString("id-ID") : "";
+  document.getElementById("soldCheck").checked = !!m.sold;
+  toggleSoldFields();
+  document.getElementById("overlay").classList.add("open");
+}
+async function deleteItem(id){
+  if(!confirm("Delete this motorcycle?")) return;
+  try{ await motorsCollection.doc(id).delete(); }
+  catch(err){ alert("Delete failed: " + err.message); }
+}
+async function saveItem(){
+  const id = document.getElementById("editId").value;
+  const sold = document.getElementById("soldCheck").checked;
+  const data = {
+    plate: document.getElementById("plate").value.trim(),
+    model: document.getElementById("model").value.trim(),
+    photo: currentPhoto,
+    fromWhom: document.getElementById("fromWhom").value.trim(),
+    buyDate: document.getElementById("buyDate").value,
+    buyPrice: parseAmount("buyPrice"),
+    expenses: readExpenses(),
+    notes: document.getElementById("notes").value.trim(),
+    sold: sold,
+    toWhom: sold ? document.getElementById("toWhom").value.trim() : "",
+    sellDate: sold ? document.getElementById("sellDate").value : "",
+    sellPrice: sold ? parseAmount("sellPrice") : "",
+  };
+  try{
+    if(id){
+      await motorsCollection.doc(id).update(data);
+    } else {
+      await motorsCollection.add(data);
+    }
+    closeForm();
+  } catch(err){
+    alert("Save failed: " + err.message);
+  }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(motors, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "motorcycle-bookkeeping-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev){
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!Array.isArray(imported)) throw new Error("bad format");
+      let added = 0;
+      for(const m of imported){
+        const { id, ...rest } = m;
+        await motorsCollection.add(rest);
+        added++;
+      }
+      alert(added + " motorcycles imported.");
+    }catch(err){
+      alert("Import failed: " + (err.message || "invalid backup file."));
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+}
+
+render();
+</script>
+</body>
+</html>
