@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حسابداری موتور</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f766e">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MotoLedger">
+<style>
+:root{
+  --bg:#f5f5f4; --card:#fff; --text:#1c1917; --muted:#78716c;
+  --border:#e7e5e4; --accent:#0f766e; --accent2:#0d9488;
+  --profit:#15803d; --loss:#b91c1c;
+  --shadow:0 4px 14px rgba(28,25,23,.08); --shadow-lg:0 10px 30px rgba(28,25,23,.14);
+  --radius:16px;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121110; --card:#1e1c1a; --text:#f5f5f4; --muted:#a39d97;
+    --border:#332f2c; --accent:#2dd4bf; --accent2:#14b8a6; --profit:#4ade80; --loss:#f87171;
+    --shadow:0 4px 16px rgba(0,0,0,.35); --shadow-lg:0 12px 32px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121110; --card:#1e1c1a; --text:#f5f5f4; --muted:#a39d97;
+  --border:#332f2c; --accent:#2dd4bf; --accent2:#14b8a6; --profit:#4ade80; --loss:#f87171;
+  --shadow:0 4px 16px rgba(0,0,0,.35); --shadow-lg:0 12px 32px rgba(0,0,0,.5);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px); height:100%;}
+*{box-sizing:border-box;}
+body{margin:0; min-height:100%; background:var(--bg); color:var(--text); font-family:"Vazirmatn",Tahoma,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; padding:16px; padding-bottom:calc(16px + env(safe-area-inset-bottom,0px)); -webkit-font-smoothing:antialiased; position:relative;}
+.bg-moto{position:fixed; inset:0; z-index:-1; pointer-events:none; overflow:hidden; background:var(--bg);}
+.bg-moto svg{position:absolute; bottom:-4%; right:-8%; width:130%; max-width:900px; opacity:.06; color:var(--accent);}
+:root[data-theme="dark"] .bg-moto svg{opacity:.09;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .bg-moto svg{opacity:.09;} }
+h1{font-size:1.25rem; margin:0 0 12px; display:flex; align-items:center; gap:8px; letter-spacing:.2px;}
+.summary{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;}
+.stat{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px 14px; box-shadow:var(--shadow);}
+.stat .n{font-size:1.35rem; font-weight:800; color:var(--accent);}
+.stat .l{font-size:.75rem; color:var(--muted); margin-top:2px;}
+button{font-family:inherit; cursor:pointer; border:none; border-radius:10px; padding:10px 14px; font-size:.9rem; transition:transform .12s ease, opacity .12s ease;}
+button:active{transform:scale(.97);}
+.row2{display:flex; gap:8px; margin-bottom:10px;}
+.row2 button{flex:1; background:var(--card); border:1px solid var(--border); color:var(--text); font-size:.8rem; box-shadow:var(--shadow);}
+.btn-main{background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#1c1917; width:100%; margin-bottom:10px; font-weight:700; box-shadow:var(--shadow-lg); padding:13px 14px; font-size:.95rem;}
+.search-row{display:flex; gap:8px; margin-bottom:10px;}
+.search-row input, .search-row select{flex:1; padding:10px; border-radius:10px; border:1px solid var(--border); background:var(--card); color:var(--text); font-size:.85rem; font-family:inherit; box-shadow:var(--shadow);}
+.card{background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; box-shadow:var(--shadow); transition:box-shadow .15s ease;}
+.card-top{display:flex; justify-content:space-between; align-items:center;}
+.card-top-left{display:flex; align-items:center; gap:10px;}
+.thumb{width:52px; height:52px; border-radius:12px; object-fit:cover; background:var(--border); flex-shrink:0; box-shadow:var(--shadow);}
+.card-title{font-weight:700; font-size:1rem;}
+.card-sub{font-size:.8rem; color:var(--muted); margin-top:2px;}
+.badge{font-size:.68rem; padding:4px 10px; border-radius:99px; background:var(--border); font-weight:600; letter-spacing:.2px;}
+.badge.sold{background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#1c1917;}
+.card-body{margin-top:8px; font-size:.85rem; display:grid; grid-template-columns:1fr 1fr; gap:4px 10px;}
+.card-body div span{color:var(--muted);}
+.exp-line{font-size:.8rem; color:var(--muted); margin-top:2px;}
+.notes-line{font-size:.8rem; margin-top:6px; font-style:italic; color:var(--muted);}
+.profit-line{margin-top:8px; font-weight:700; font-size:.95rem;}
+.profit-line.p{color:var(--profit);} .profit-line.l{color:var(--loss);}
+.actions{display:flex; gap:8px; margin-top:10px;}
+.actions button{flex:1; background:var(--border); color:var(--text); font-size:.8rem;}
+.actions button.del{background:transparent; color:var(--loss); border:1px solid var(--loss);}
+.empty{text-align:center; color:var(--muted); padding:30px 10px; font-size:.9rem;}
+.tabs{display:flex; gap:8px; margin-bottom:12px;}
+.tab-btn{flex:1; background:var(--card); border:1px solid var(--border); color:var(--muted); font-weight:600; padding:10px; box-shadow:var(--shadow);}
+.tab-btn.active{background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#1c1917; border-color:transparent; box-shadow:var(--shadow-lg);}
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(2px); display:none; align-items:flex-end; justify-content:center; z-index:10;}
+.overlay.open{display:flex;}
+.sheet{background:var(--card); width:100%; max-width:480px; border-radius:22px 22px 0 0; padding:18px; padding-bottom:calc(18px + env(safe-area-inset-bottom,0px)); max-height:88vh; overflow-y:auto; box-shadow:var(--shadow-lg); border-top:1px solid var(--border);}
+.sheet h2{margin:0 0 12px; font-size:1.1rem; display:flex; align-items:center; gap:8px;}
+label{display:block; font-size:.8rem; color:var(--muted); margin:10px 0 4px; font-weight:600;}
+input, textarea, select{width:100%; padding:11px; border-radius:10px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:.9rem; font-family:inherit; transition:border-color .12s ease;}
+input:focus, textarea:focus, select:focus{outline:none; border-color:var(--accent);}
+textarea{resize:vertical; min-height:60px;}
+.sold-toggle{display:flex; align-items:center; gap:8px; margin-top:14px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px;}
+.sold-toggle input{width:auto;}
+.sold-toggle label{margin:0; color:var(--text); font-weight:600; font-size:.85rem;}
+#soldFields{display:none;} #soldFields.show{display:block;}
+.sheet-actions{display:flex; gap:8px; margin-top:16px;}
+.sheet-actions button{flex:1;}
+.save{background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#1c1917; font-weight:700; box-shadow:var(--shadow-lg);}
+.cancel{background:var(--border); color:var(--text);}
+.exp-row{display:flex; gap:6px; margin-top:6px; align-items:center;}
+.exp-row input{flex:1;}
+.exp-row .rm{background:transparent; color:var(--loss); border:1px solid var(--loss); padding:8px 10px; flex:0 0 auto;}
+.add-exp{background:var(--border); color:var(--text); width:100%; margin-top:8px; font-size:.8rem;}
+.chart-wrap{display:none; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; box-shadow:var(--shadow);}
+.chart-wrap.show{display:block;}
+.chart-row{display:flex; align-items:center; gap:8px; margin-top:6px; font-size:.78rem;}
+.chart-label{width:64px; color:var(--muted); flex-shrink:0;}
+.chart-bar-bg{flex:1; background:var(--border); border-radius:6px; overflow:hidden; height:16px;}
+.chart-bar{height:100%; background:var(--accent2);}
+.chart-bar.neg{background:var(--loss);}
+.chart-val{width:80px; text-align:end; flex-shrink:0;}
+.vbar{background:#b45309;color:#fff;padding:8px 12px;border-radius:10px;font-size:.8rem;margin-bottom:10px;display:none}
+.vbar button{background:#fff;color:#b45309;padding:4px 10px;margin-inline-start:8px;font-size:.75rem}
+#printArea{display:none;padding:12px;color:#000;background:#fff;font-size:12px}
+#printArea table{width:100%;border-collapse:collapse}#printArea td,#printArea th{border:1px solid #999;padding:4px;text-align:start}
+@media print{body>*:not(#printArea){display:none!important}#printArea{display:block!important}}
+</style>
+</head>
+<body>
+
+<div class="bg-moto" aria-hidden="true">
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+  <circle cx="165" cy="300" r="88" stroke-width="12"/>
+  <circle cx="165" cy="300" r="34" stroke-width="8"/>
+  <circle cx="620" cy="300" r="88" stroke-width="12"/>
+  <circle cx="620" cy="300" r="34" stroke-width="8"/>
+  <path d="M165 300 L340 300 L430 180 L520 180"/>
+  <path d="M340 300 L400 190"/>
+  <path d="M430 180 L470 130 L520 130"/>
+  <path d="M520 130 L500 110 M520 130 L545 105"/>
+  <path d="M400 190 L460 300 L620 300"/>
+  <path d="M400 190 L330 235 L250 235 L200 260"/>
+  <path d="M330 190 Q400 155 470 190 L470 230 Q400 210 330 230 Z" fill="currentColor" stroke="none" opacity=".85"/>
+  <path d="M600 250 L680 270 L680 290 L610 285 Z" fill="currentColor" stroke="none" opacity=".85"/>
+</svg>
+</div>
+
+
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<div class="overlay open" id="authOverlay" style="background:var(--bg); position:fixed; align-items:center;">
+  <div class="sheet" style="max-width:380px; border-radius:20px; box-shadow:var(--shadow-lg); border:1px solid var(--border);">
+    <select class="langsel" onchange="setLang(this.value)" style="display:block;margin-inline-start:auto;margin-bottom:8px;width:auto;padding:6px 8px;font-size:.8rem" data-nt><option value="fa">فارسی</option><option value="en">English</option><option value="id">Indonesia</option></select><h2 id="authTitle" data-nt>🏍️ ورود</h2>
+    <div id="authError" style="display:none; background:color-mix(in srgb, var(--loss) 15%, transparent); color:var(--loss); padding:9px 11px; border-radius:8px; font-size:.8rem; margin-bottom:8px; border:1px solid color-mix(in srgb, var(--loss) 35%, transparent);"></div>
+    <label>ایمیل</label>
+    <input id="authEmail" type="email" autocomplete="email">
+    <label>رمز عبور</label>
+    <input id="authPassword" type="password" autocomplete="current-password">
+    <div id="authCodeWrap" style="display:none;">
+      <label>کد فعال‌سازی</label>
+      <input id="authCode" autocomplete="off">
+    </div>
+    <div class="sheet-actions">
+      <button class="save" id="authSubmitBtn" data-nt onclick="authSubmit()" style="width:100%;">ورود</button>
+    </div>
+    <div style="text-align:center; margin-top:10px; font-size:.85rem;">
+      <a href="#" id="authToggleLink" data-nt onclick="authToggleMode();return false;" style="color:var(--accent);">حساب ندارید؟ ثبت‌نام</a><br><a href="#" onclick="resetPass();return false;" style="color:var(--muted);font-size:.8rem;">فراموشی رمز عبور</a>
+    </div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+  <h1 style="margin-bottom:0;">🏍️ حسابداری موتور</h1>
+  <span style="display:flex;gap:6px;align-items:center"><select class="langsel" onchange="setLang(this.value)" style="width:auto;padding:6px 8px;font-size:.8rem" data-nt><option value="fa">فارسی</option><option value="en">English</option><option value="id">Indonesia</option></select><button onclick="doLogout()" style="background:var(--border); color:var(--text); font-size:.75rem; padding:7px 12px; box-shadow:var(--shadow);">خروج</button></span>
+</div>
+
+<div class="card" id="adminPanel" style="display:none;">
+  <div style="font-weight:700; margin-bottom:8px;">🔑 مدیر: کدهای فعال‌سازی</div>
+  <button onclick="generateCode()" style="background:var(--accent); color:#fff; width:100%; margin-bottom:8px;">+ ساخت کد جدید</button>
+  <div id="newCodeBox" style="display:none; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px; text-align:center;">
+    <div style="font-size:1.1rem; font-weight:700; letter-spacing:1px;" id="newCodeText"></div>
+    <button onclick="copyNewCode()" style="margin-top:6px; background:var(--border); color:var(--text); font-size:.75rem;">کپی</button>
+  </div>
+  <div id="codesList" style="font-size:.8rem;"></div>
+</div>
+
+<div class="vbar" id="verifyBar">ایمیل شما هنوز تأیید نشده است. <button onclick="auth.currentUser.sendEmailVerification().then(()=>alert('لینک تأیید ارسال شد'))">ارسال دوباره</button></div>
+<div class="summary">
+  <div class="stat"><div class="n" id="statProfit">0</div><div class="l">سود/زیان خالص (IDR)</div></div>
+  <div class="stat"><div class="n" id="statCount">0</div><div class="l">تعداد موتور</div></div>
+</div>
+
+<button class="btn-main" onclick="openForm()">+ ثبت موتور جدید</button>
+
+<div class="row2">
+  <button onclick="toggleChart()">📊 گزارش</button>
+  <button onclick="exportData()">⬆️ پشتیبان</button>
+  <button onclick="document.getElementById('importInput').click()">⬇️ بازیابی</button>
+</div>
+<div class="row2">
+  <button onclick="openG()">💸 هزینه‌های عمومی</button>
+  <button onclick="exportCSV()">📄 Excel</button>
+  <button onclick="printReport()">🖨️ PDF</button>
+</div>
+<input id="importInput" type="file" accept="application/json" style="display:none;" onchange="importData(event)">
+
+<div class="chart-wrap" id="chartWrap"></div>
+
+<div class="search-row">
+  <input id="searchBox" placeholder="🔍 جستجوی پلاک یا مدل" oninput="render()">
+  <select id="sortBox" onchange="render()">
+    <option value="newest">جدیدترین</option>
+    <option value="buyDate">تاریخ خرید</option>
+    <option value="sellDate">تاریخ فروش</option>
+    <option value="profitDesc">سود (زیاد به کم)</option>
+    <option value="profitAsc">سود (کم به زیاد)</option>
+  </select>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn" id="tabUnsold" onclick="setTab('unsold')">فروخته‌نشده (<span id="countUnsold">0</span>)</button>
+  <button class="tab-btn" id="tabSold" onclick="setTab('sold')">فروخته‌شده (<span id="countSold">0</span>)</button>
+</div>
+
+<div id="list"></div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="formTitle" data-nt>ثبت موتور جدید</h2>
+    <input type="hidden" id="editId">
+
+    <label>شماره پلاک</label>
+    <input id="plate" placeholder="مثلاً B 1234 XYZ" autocomplete="off">
+
+    <label>نوع / مدل موتور</label>
+    <input id="model" placeholder="مثلاً Honda Beat" autocomplete="off">
+
+    <label>عکس</label>
+    <div style="display:flex; gap:8px;">
+      <div style="position:relative; flex:1; border-radius:10px; overflow:hidden;">
+        <div style="background:var(--border); color:var(--text); border-radius:10px; padding:10px 14px; font-size:.9rem; text-align:center;">📷 دوربین</div>
+        <input id="cameraInput" type="file" accept="image/*" capture="environment" style="position:absolute; inset:0; width:100%; height:100%; opacity:0;" onchange="handlePhoto(event)">
+      </div>
+      <div style="position:relative; flex:1; border-radius:10px; overflow:hidden;">
+        <div style="background:var(--border); color:var(--text); border-radius:10px; padding:10px 14px; font-size:.9rem; text-align:center;">🖼️ گالری</div>
+        <input id="galleryInput" type="file" accept="image/*" style="position:absolute; inset:0; width:100%; height:100%; opacity:0;" onchange="handlePhoto(event)">
+      </div>
+    </div>
+    <img id="photoPreview" style="display:none; width:100%; max-height:160px; object-fit:cover; border-radius:10px; margin-top:8px;">
+
+    <label>خرید از (اختیاری)</label>
+    <input id="fromWhom" placeholder="نام فروشنده" autocomplete="off">
+
+    <label>تاریخ خرید</label>
+    <input id="buyDate" type="date">
+
+    <label>قیمت خرید (IDR)</label>
+    <input id="buyPrice" type="text" inputmode="numeric" autocomplete="off" oninput="formatNumberInput(event)">
+
+    <label>سایر هزینه‌ها</label>
+    <div id="expList"></div>
+    <button type="button" class="add-exp" onclick="addExpenseRow()">+ افزودن هزینه</button>
+
+    <label>یادداشت</label>
+    <textarea id="notes" placeholder="توضیحات درباره این موتور..."></textarea>
+
+    <div class="sold-toggle">
+      <input type="checkbox" id="soldCheck" onchange="toggleSoldFields()">
+      <label for="soldCheck">این موتور فروخته شده است</label>
+    </div>
+
+    <div id="soldFields">
+      <label>نام خریدار (اختیاری)</label>
+      <input id="toWhom" placeholder="نام خریدار" autocomplete="off">
+      <label>تاریخ فروش</label>
+      <input id="sellDate" type="date">
+      <label>قیمت فروش (IDR)</label>
+      <input id="sellPrice" type="text" inputmode="numeric" autocomplete="off" oninput="formatNumberInput(event)">
+    </div>
+
+    <div class="sheet-actions">
+      <button class="cancel" onclick="closeForm()">انصراف</button>
+      <button class="save" onclick="saveItem()">ذخیره</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="gOverlay"><div class="sheet">
+  <h2>💸 هزینه‌های عمومی</h2>
+  <label>عنوان</label><input id="gTitle" placeholder="مثلاً اجاره محل" autocomplete="off">
+  <label>مبلغ (IDR)</label><input id="gAmt" inputmode="numeric" oninput="formatNumberInput(event)">
+  <label>تاریخ</label><input id="gDate" type="date">
+  <button class="add-exp" onclick="addGexp()">+ افزودن</button>
+  <div id="gList" style="margin-top:10px;font-size:.85rem;"></div>
+  <div class="sheet-actions"><button class="cancel" onclick="document.getElementById('gOverlay').classList.remove('open')">بستن</button></div>
+</div></div>
+</div><!-- /appRoot -->
+<div id="printArea"></div>
+
+<script>
+let LANG="fa"; try{LANG=localStorage.getItem("lang")||"fa";}catch(e){}
+const DICT={"ایمیل":["Email","Email"],"رمز عبور":["Password","Kata sandi"],"کد فعال‌سازی":["Activation Code","Kode Aktivasi"],"ورود":["Login","Masuk"],"ثبت‌نام":["Sign Up","Daftar"],"حساب ندارید؟ ثبت‌نام":["Don't have an account? Sign up","Belum punya akun? Daftar"],"حساب دارید؟ ورود":["Already have an account? Login","Sudah punya akun? Masuk"],"فراموشی رمز عبور":["Forgot password","Lupa kata sandi"],"خروج":["Logout","Keluar"],"🔑 مدیر: کدهای فعال‌سازی":["🔑 Admin: Activation Codes","🔑 Admin: Kode Aktivasi"],"+ ساخت کد جدید":["+ Generate New Code","+ Buat Kode Baru"],"کپی":["Copy","Salin"],"🏍️ حسابداری موتور":["🏍️ Motorcycle Bookkeeping","🏍️ Pembukuan Motor"],"سود/زیان خالص (IDR)":["Net Profit / Loss (IDR)","Laba/Rugi Bersih (IDR)"],"تعداد موتور":["Total Motorcycles","Total Motor"],"+ ثبت موتور جدید":["+ Add New Motorcycle","+ Tambah Motor Baru"],"ثبت موتور جدید":["Add New Motorcycle","Tambah Motor Baru"],"ویرایش موتور":["Edit Motorcycle","Edit Motor"],"📊 گزارش":["📊 Report","📊 Laporan"],"⬆️ پشتیبان":["⬆️ Backup","⬆️ Cadangkan"],"⬇️ بازیابی":["⬇️ Restore","⬇️ Pulihkan"],"💸 هزینه‌های عمومی":["💸 General Expenses","💸 Biaya Umum"],"🔍 جستجوی پلاک یا مدل":["🔍 Search plate or model","🔍 Cari plat atau model"],"جدیدترین":["Newest","Terbaru"],"تاریخ خرید":["Purchase Date","Tanggal Beli"],"تاریخ فروش":["Sale Date","Tanggal Jual"],"سود (زیاد به کم)":["Profit (high→low)","Laba (tinggi→rendah)"],"سود (کم به زیاد)":["Profit (low→high)","Laba (rendah→tinggi)"],"فروخته‌نشده (":["Unsold (","Belum Terjual ("],"فروخته‌شده (":["Sold (","Terjual ("],"شماره پلاک":["Plate Number","Nomor Plat"],"نوع / مدل موتور":["Motorcycle Type / Model","Jenis / Model Motor"],"عکس":["Photo","Foto"],"📷 دوربین":["📷 Camera","📷 Kamera"],"🖼️ گالری":["🖼️ Gallery","🖼️ Galeri"],"خرید از (اختیاری)":["Purchased From (optional)","Dibeli Dari (opsional)"],"قیمت خرید (IDR)":["Purchase Price (IDR)","Harga Beli (IDR)"],"سایر هزینه‌ها":["Other Expenses","Biaya Lain"],"+ افزودن هزینه":["+ Add Expense","+ Tambah Biaya"],"یادداشت":["Notes","Catatan"],"این موتور فروخته شده است":["This motorcycle has been sold","Motor ini sudah terjual"],"نام خریدار (اختیاری)":["Buyer Name (optional)","Nama Pembeli (opsional)"],"قیمت فروش (IDR)":["Sale Price (IDR)","Harga Jual (IDR)"],"انصراف":["Cancel","Batal"],"ذخیره":["Save","Simpan"],"مثلاً B 1234 XYZ":["e.g. B 1234 XYZ","mis. B 1234 XYZ"],"مثلاً Honda Beat":["e.g. Honda Beat","mis. Honda Beat"],"نام فروشنده":["Seller name","Nama penjual"],"توضیحات درباره این موتور...":["Any notes about this motorcycle...","Catatan tentang motor ini..."],"نام خریدار":["Buyer name","Nama pembeli"],"عنوان هزینه (مثلاً بیمه)":["Expense name (e.g. Insurance)","Nama biaya (mis. Asuransi)"],"مبلغ":["Amount","Jumlah"],"مثلاً اجاره محل":["e.g. Shop rent","mis. Sewa tempat"],"عنوان":["Title","Judul"],"مبلغ (IDR)":["Amount (IDR)","Jumlah (IDR)"],"تاریخ":["Date","Tanggal"],"+ افزودن":["+ Add","+ Tambah"],"بستن":["Close","Tutup"],"ایمیل شما هنوز تأیید نشده است.":["Your email is not verified yet.","Email Anda belum diverifikasi."],"ارسال دوباره":["Resend","Kirim ulang"],"خرید":["Purchase","Beli"],"فروش":["Sale","Jual"],"از":["From","Dari"],"به":["To","Kepada"],"قیمت خرید":["Purchase Price","Harga Beli"],"هزینه کل":["Total Cost","Total Biaya"],"قیمت فروش":["Sale Price","Harga Jual"],"فروخته‌شده":["Sold","Terjual"],"موجود":["Available","Tersedia"],"ویرایش":["Edit","Edit"],"حذف":["Delete","Hapus"],"پلاک":["Plate","Plat"],"مدل":["Model","Model"],"وضعیت":["Status","Status"],"هنوز فروخته نشده":["Not sold yet","Belum terjual"],"فروخته شده — قیمت فروش ثبت نشده":["Sold — sale price not recorded","Terjual — harga jual belum dicatat"],"سود":["Profit","Laba"],"زیان":["Loss","Rugi"],"روز نگهداری":["days held","hari disimpan"],"موردی پیدا نشد":["No matches found","Tidak ditemukan"],"هنوز موتوری فروخته نشده":["No motorcycles sold yet","Belum ada motor terjual"],"موتور فروخته‌نشده‌ای نیست":["No unsold motorcycles","Tidak ada motor yang belum terjual"],"بدون مدل":["No model","Tanpa model"],"هزینه":["Expense","Biaya"],"هنوز داده‌ای برای گزارش نیست":["No report data yet","Belum ada data laporan"],"سود/زیان خالص ماهانه (میلادی)":["Monthly net profit / loss (Gregorian)","Laba/rugi bersih bulanan (Masehi)"],"خلاصه سالانه":["Yearly summary","Ringkasan tahunan"],"سود موتورها":["Motorcycle profit","Laba motor"],"هزینه عمومی":["General expenses","Biaya umum"],"خالص":["Net","Bersih"],"هنوز هزینه‌ای ثبت نشده":["No expenses yet","Belum ada biaya"],"جمع":["Total","Total"],"هنوز کدی نیست.":["No codes yet.","Belum ada kode."],"استفاده‌شده":["used by","dipakai oleh"],"استفاده‌نشده":["unused","belum dipakai"],"در حال بارگذاری...":["Loading...","Memuat..."],"بارگذاری کدها ناموفق بود.":["Failed to load codes.","Gagal memuat kode."],"گزارش حسابداری موتور":["Motorcycle Accounting Report","Laporan Pembukuan Motor"],"سود موتورهای فروخته‌شده":["Profit from sold motorcycles","Laba motor terjual"],"هزینه‌های عمومی":["General expenses","Biaya umum"],"سود خالص":["Net profit","Laba bersih"],"لینک تأیید ارسال شد":["Verification link sent","Tautan verifikasi dikirim"],"ایمیل و رمز عبور را وارد کنید.":["Please enter email and password.","Masukkan email dan kata sandi."],"کد فعال‌سازی را وارد کنید.":["Please enter your activation code.","Masukkan kode aktivasi."],"کد فعال‌سازی نامعتبر یا قبلاً استفاده شده است.":["Invalid or already-used activation code.","Kode aktivasi tidak valid atau sudah dipakai."],"ابتدا ایمیل را وارد کنید.":["Enter your email first.","Masukkan email terlebih dahulu."],"لینک بازیابی رمز به ایمیل شما ارسال شد.":["A password reset link was sent to your email.","Tautan reset kata sandi dikirim ke email Anda."],"عنوان، مبلغ و تاریخ را وارد کنید.":["Enter title, amount and date.","Isi judul, jumlah, dan tanggal."],"این هزینه حذف شود؟":["Delete this expense?","Hapus biaya ini?"],"این موتور حذف شود؟":["Delete this motorcycle?","Hapus motor ini?"],"ذخیره ناموفق بود":["Save failed","Gagal menyimpan"],"حذف ناموفق بود":["Delete failed","Gagal menghapus"],"ساخت کد ناموفق بود":["Failed to generate code","Gagal membuat kode"],"کپی شد":["Copied","Disalin"],"بازیابی ناموفق بود: فایل نامعتبر است.":["Restore failed: invalid backup file.","Pemulihan gagal: file cadangan tidak valid."],"موتور بازیابی شد.":["motorcycles restored.","motor dipulihkan."],"خطا در اتصال به Firebase":["Firebase connection error","Kesalahan koneksi Firebase"],"ایمیل یا رمز عبور اشتباه است.":["Wrong email or password.","Email atau kata sandi salah."],"این ایمیل قبلاً ثبت شده است.":["This email is already registered.","Email ini sudah terdaftar."],"رمز عبور باید حداقل ۶ کاراکتر باشد.":["Password must be at least 6 characters.","Kata sandi minimal 6 karakter."],"ایمیل نامعتبر است.":["Invalid email.","Email tidak valid."],"اتصال اینترنت برقرار نیست.":["No internet connection.","Tidak ada koneksi internet."],"تلاش زیاد؛ کمی بعد دوباره امتحان کنید.":["Too many attempts; try again later.","Terlalu banyak percobaan; coba lagi nanti."],"دسترسی مجاز نیست.":["Permission denied.","Akses ditolak."],"خطایی رخ داد. دوباره تلاش کنید.":["Something went wrong. Try again.","Terjadi kesalahan. Coba lagi."]};
+function t(k){
+  if(LANG==="fa"||k==null) return k;
+  const i=LANG==="en"?0:1; k=String(k); let v=DICT[k]; if(v) return v[i];
+  const c=k.indexOf(": "); if(c>0&&DICT[k.slice(0,c)]) return DICT[k.slice(0,c)][i]+k.slice(c);
+  if(k.endsWith(":")&&DICT[k.slice(0,-1)]) return DICT[k.slice(0,-1)][i]+":";
+  return k;
+}
+const _al=window.alert.bind(window), _cf=window.confirm.bind(window);
+window.alert=m=>_al(t(m)); window.confirm=m=>_cf(t(m));
+function trNode(n){
+  if(n.nodeType===3){
+    const p=n.parentElement; if(p&&p.closest("[data-nt],script,style")) return;
+    if(n._o===undefined) n._o=n.data;
+    const k=n._o.trim(); if(k) n.data = LANG==="fa" ? n._o : n._o.replace(k,t(k));
+  } else if(n.nodeType===1){
+    if(n.closest("[data-nt],script,style")) return;
+    if(n.hasAttribute("placeholder")){ if(n._ph===undefined) n._ph=n.getAttribute("placeholder"); n.setAttribute("placeholder",t(n._ph)); }
+    n.childNodes.forEach(trNode);
+  }
+}
+function setLang(l){ LANG=l; try{localStorage.setItem("lang",l);}catch(e){} applyLang(); }
+function applyLang(){
+  document.documentElement.lang=LANG; document.documentElement.dir=LANG==="fa"?"rtl":"ltr";
+  document.querySelectorAll(".langsel").forEach(x=>x.value=LANG);
+  trNode(document.body); authRefresh();
+  document.getElementById("formTitle").textContent = t(document.getElementById("editId").value?"ویرایش موتور":"ثبت موتور جدید");
+  if(db){
+    render(); renderGexpList();
+    if(document.getElementById("chartWrap").classList.contains("show")) renderChart();
+    if(document.getElementById("adminPanel").style.display==="block") loadCodesList();
+  }
+}
+const firebaseConfig = {
+  apiKey: "AIzaSyADSTyXZJHZbbExG415iGpV3CFld0hKFY0",
+  authDomain: "moto-ledger.firebaseapp.com",
+  projectId: "moto-ledger",
+  storageBucket: "moto-ledger.firebasestorage.app",
+  messagingSenderId: "858295382904",
+  appId: "1:858295382904:web:2105a9588575fa65e80e8d"
+};
+let auth, db;
+try{
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+} catch(err){ console.error(err); alert("خطا در اتصال به Firebase"); }
+
+let currentUser = null;
+let motorsCollection = null;
+let unsubscribeMotors = null;
+let authMode = "login"; // or "signup"
+let signingUp = false;
+
+const ADMIN_EMAIL = "appmotor88@gmail.com";
+
+function generateRandomCode(){
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no O/0/I/1 to avoid confusion
+  let code = "";
+  for(let i=0;i<8;i++) code += chars[Math.floor(Math.random()*chars.length)];
+  return code;
+}
+
+async function generateCode(){
+  const code = generateRandomCode();
+  try{
+    await db.collection("activationCodes").doc(code).set({
+      used: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById("newCodeText").textContent = code;
+    document.getElementById("newCodeBox").style.display = "block";
+    loadCodesList();
+  } catch(err){
+    alert("ساخت کد ناموفق بود: " + fbErr(err));
+  }
+}
+
+function copyNewCode(){
+  const text = document.getElementById("newCodeText").textContent;
+  navigator.clipboard.writeText(text).then(()=> alert("کپی شد: " + text));
+}
+
+async function loadCodesList(){
+  const box = document.getElementById("codesList");
+  box.innerHTML = "در حال بارگذاری...";
+  try{
+    const snap = await db.collection("activationCodes").orderBy("createdAt","desc").limit(20).get();
+    if(snap.empty){ box.innerHTML = '<div style="color:var(--muted);">هنوز کدی نیست.</div>'; return; }
+    box.innerHTML = snap.docs.map(d=>{
+      const v = d.data();
+      const status = v.used ? t("استفاده‌شده")+": "+(esc(v.usedByEmail)||'?') : t("استفاده‌نشده");
+      return `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--border);">
+        <span>${esc(d.id)}</span><span style="color:${v.used?'var(--muted)':'var(--profit)'}">${status}</span>
+      </div>`;
+    }).join("");
+  } catch(err){
+    box.innerHTML = '<div style="color:var(--loss);">بارگذاری کدها ناموفق بود.</div>';
+  }
+}
+
+function authToggleMode(){
+  authMode = authMode === "login" ? "signup" : "login";
+  authRefresh();
+}
+function authRefresh(){
+  document.getElementById("authTitle").textContent = authMode === "login" ? "🏍️ "+t("ورود") : "🏍️ "+t("ثبت‌نام");
+  document.getElementById("authSubmitBtn").textContent = authMode === "login" ? t("ورود") : t("ثبت‌نام");
+  document.getElementById("authCodeWrap").style.display = authMode === "signup" ? "block" : "none";
+  document.getElementById("authToggleLink").textContent = authMode === "login" ? t("حساب ندارید؟ ثبت‌نام") : t("حساب دارید؟ ورود");
+  document.getElementById("authError").style.display = "none";
+}
+
+function showAuthError(msg){
+  const el = document.getElementById("authError");
+  el.textContent = t(msg);
+  el.style.display = "block";
+}
+
+async function authSubmit(){
+  if(authMode==="signup") signingUp = true;
+  try{ await authSubmitInner(); } finally { signingUp = false; }
+}
+async function authSubmitInner(){
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const code = document.getElementById("authCode").value.trim();
+  document.getElementById("authError").style.display = "none";
+  if(!email || !password){ showAuthError("ایمیل و رمز عبور را وارد کنید."); return; }
+  const btn = document.getElementById("authSubmitBtn");
+  btn.disabled = true;
+  try{
+    if(authMode === "login"){
+      await auth.signInWithEmailAndPassword(email, password);
+    } else {
+      if(!code){ showAuthError("کد فعال‌سازی را وارد کنید."); btn.disabled=false; return; }
+      let cred;
+      try{
+        cred = await auth.createUserWithEmailAndPassword(email, password);
+      } catch(err){
+        showAuthError(fbErr(err));
+        btn.disabled = false;
+        return;
+      }
+      const uid = cred.user.uid;
+      try{
+        const codeRef = db.collection("activationCodes").doc(code);
+        const codeSnap = await codeRef.get();
+        if(!codeSnap.exists || codeSnap.data().used){
+          showAuthError("کد فعال‌سازی نامعتبر یا قبلاً استفاده شده است.");
+          await cred.user.delete();
+          btn.disabled = false;
+          return;
+        }
+        const batch = db.batch(); batch.set(db.collection("users").doc(uid), {
+          email: email,
+          active: true,
+          activationCode: code,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        batch.update(codeRef, {
+          used: true,
+          usedBy: uid,
+          usedByEmail: email,
+          usedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        await batch.commit();
+        signingUp = false; startSession(auth.currentUser);
+        cred.user.sendEmailVerification().catch(()=>{});
+      } catch(err){
+        showAuthError(fbErr(err));
+        try{ await cred.user.delete(); }catch(e2){}
+        btn.disabled = false;
+        return;
+      }
+    }
+  } catch(err){
+    showAuthError(fbErr(err));
+  }
+  btn.disabled = false;
+}
+
+function doLogout(){
+  if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+  auth.signOut();
+}
+
+auth.onAuthStateChanged(function(user){
+  if(signingUp) return;
+  if(user) startSession(user); else endSession();
+});
+function endSession(){
+  currentUser = null; motors = []; gexps = [];
+  if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+  if(unsubG){ unsubG(); unsubG = null; }
+  document.getElementById("chartWrap").classList.remove("show");
+  document.getElementById("adminPanel").style.display = "none";
+  currentTab = null; render();
+  document.getElementById("appRoot").style.display = "none";
+  document.getElementById("authOverlay").classList.add("open");
+}
+function startSession(user){
+  {
+    if(unsubscribeMotors){ unsubscribeMotors(); unsubscribeMotors = null; }
+    motors = []; gexps = []; currentTab = null; render();
+    currentUser = user;
+    motorsCollection = db.collection("users").doc(user.uid).collection("motors");
+    document.getElementById("authOverlay").classList.remove("open");
+    document.getElementById("verifyBar").style.display = user.emailVerified ? "none" : "block";
+    document.getElementById("appRoot").style.display = "block";
+    if(user.email === ADMIN_EMAIL){
+      document.getElementById("adminPanel").style.display = "block";
+      loadCodesList();
+    } else {
+      document.getElementById("adminPanel").style.display = "none";
+    }
+    listenMotors();
+  }
+}
+
+function listenMotors(){ listenGexp();
+  unsubscribeMotors = motorsCollection.onSnapshot(function(snap){
+    motors = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    render();
+  }, function(err){
+    console.error("Firestore listen error", err);
+  });
+}
+
+let motors = [];
+let currentTab = null;
+let currentPhoto = "";
+let expCounter = 0;
+
+function formatNumberInput(e){
+  const el = e.target;
+  const raw = toEn(el.value).replace(/\D/g,"");
+  el.value = raw === "" ? "" : Number(raw).toLocaleString("en-US");
+}
+function parseAmount(id){ return toEn(document.getElementById(id).value).replace(/\D/g,""); }
+
+function handlePhoto(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxW = 500;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      currentPhoto = canvas.toDataURL("image/jpeg", 0.7);
+      const prev = document.getElementById("photoPreview");
+      prev.src = currentPhoto; prev.style.display = "block";
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleSoldFields(){
+  document.getElementById("soldFields").classList.toggle("show", document.getElementById("soldCheck").checked);
+}
+
+function addExpenseRow(name, amount){
+  expCounter++;
+  const id = "exp"+expCounter;
+  const wrap = document.createElement("div");
+  wrap.className = "exp-row";
+  wrap.id = id;
+  wrap.innerHTML = `
+    <input placeholder="عنوان هزینه (مثلاً بیمه)" class="exp-name" value="${esc(name)}">
+    <input placeholder="مبلغ" class="exp-amt" inputmode="numeric" value="${amount?Number(amount).toLocaleString('en-US'):''}" oninput="formatNumberInput(event)">
+    <button type="button" class="rm" onclick="document.getElementById('${id}').remove()">✕</button>`;
+  document.getElementById("expList").appendChild(wrap);
+}
+function readExpenses(){
+  return Array.from(document.querySelectorAll("#expList .exp-row")).map(row=>{
+    const name = row.querySelector(".exp-name").value.trim();
+    const amount = toEn(row.querySelector(".exp-amt").value).replace(/\D/g,"");
+    return {name, amount};
+  }).filter(x=>x.name || x.amount);
+}
+
+function setTab(tab){
+  currentTab = (currentTab === tab) ? null : tab;
+  document.getElementById("tabUnsold").classList.toggle("active", currentTab==="unsold");
+  document.getElementById("tabSold").classList.toggle("active", currentTab==="sold");
+  render();
+}
+
+function fmt(n){ n = Number(n)||0; return n.toLocaleString("en-US"); }
+function fmtDate(d){
+  if(!d) return "-";
+  const t = new Date(d+"T00:00:00");
+  return isNaN(t) ? d : t.toLocaleDateString({fa:"fa-IR-u-ca-persian-nu-latn",en:"en-GB",id:"id-ID"}[LANG]);
+}
+function costTotal(m){
+  const exp = (m.expenses||[]).reduce((s,e)=>s+(Number(e.amount)||0),0);
+  return (Number(m.buyPrice)||0) + exp;
+}
+function isSold(m){ return !!m.sold; }
+function profit(m){
+  if(!isSold(m) || m.sellPrice==="" || m.sellPrice==null) return null;
+  return Number(m.sellPrice) - costTotal(m);
+}
+function profitPct(m){
+  const p = profit(m); const c = costTotal(m);
+  if(p===null || !c) return null;
+  return (p/c)*100;
+}
+function holdingDays(m){
+  if(!m.buyDate || !m.sellDate) return null;
+  const d1 = new Date(m.buyDate), d2 = new Date(m.sellDate);
+  const diff = Math.round((d2-d1)/86400000);
+  return diff>=0 ? diff : null;
+}
+
+function toggleChart(){
+  const wrap = document.getElementById("chartWrap");
+  wrap.classList.toggle("show");
+  if(wrap.classList.contains("show")) renderChart();
+}
+function render(){
+  const soldCount = motors.filter(isSold).length;
+  document.getElementById("countSold").textContent = soldCount;
+  document.getElementById("countUnsold").textContent = motors.length - soldCount;
+  document.getElementById("statCount").textContent = motors.length;
+  const totalProfit = motors.reduce((s,m)=>s+(profit(m)||0),0) - gexps.reduce((s,e)=>s+(Number(e.amount)||0),0);
+  const statEl = document.getElementById("statProfit");
+  statEl.textContent = (totalProfit<0?"-":"") + fmt(Math.abs(totalProfit));
+  statEl.style.color = totalProfit>=0 ? "var(--profit)" : "var(--loss)";
+
+  const list = document.getElementById("list");
+  if(currentTab === null){ list.innerHTML = ""; return; }
+
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  let filtered = motors.filter(m=>{
+    const matchTab = currentTab === "sold" ? isSold(m) : !isSold(m);
+    if(!matchTab) return false;
+    if(!q) return true;
+    return (m.plate||"").toLowerCase().includes(q) || (m.model||"").toLowerCase().includes(q);
+  });
+
+  const sortBy = document.getElementById("sortBox").value;
+  filtered.sort((a,b)=>{
+    if(sortBy==="buyDate") return (b.buyDate||"").localeCompare(a.buyDate||"");
+    if(sortBy==="sellDate") return (b.sellDate||"").localeCompare(a.sellDate||"");
+    if(sortBy==="profitDesc") return (profit(b)||-Infinity)-(profit(a)||-Infinity);
+    if(sortBy==="profitAsc") return (profit(a)||Infinity)-(profit(b)||Infinity);
+    return 0; // newest = original array order (reversed below)
+  });
+  if(sortBy==="newest") filtered = filtered.slice().reverse();
+
+  if(filtered.length === 0){
+    list.innerHTML = `<div class="empty">${q ? "موردی پیدا نشد" : (currentTab==="sold" ? "هنوز موتوری فروخته نشده" : "موتور فروخته‌نشده‌ای نیست")}</div>`;
+  } else {
+    list.innerHTML = filtered.map(m=>{
+      const sold = isSold(m);
+      const p = profit(m);
+      const pct = profitPct(m);
+      const days = holdingDays(m);
+      let profitHtml = '<div class="profit-line" style="color:var(--muted)">هنوز فروخته نشده</div>';
+      if(sold){
+        profitHtml = p===null
+          ? '<div class="profit-line" style="color:var(--muted)">فروخته شده — قیمت فروش ثبت نشده</div>'
+          : `<div class="profit-line ${p>=0?'p':'l'}">${p>=0?t('سود'):t('زیان')}: ${fmt(Math.abs(p))} IDR${pct!==null?` (${pct>=0?'':''}${pct.toFixed(1)}%)`:''}${days!==null?` | ${days} ${t("روز نگهداری")}`:''}</div>`;
+      }
+      const expLines = (m.expenses||[]).filter(e=>Number(e.amount)).map(e=>`<div class="exp-line">${esc(e.name)||t('هزینه')}: ${fmt(e.amount)}</div>`).join("");
+      return `
+      <div class="card">
+        <div class="card-top">
+          <div class="card-top-left">
+            ${m.photo ? `<img class="thumb" src="${esc(m.photo)}">` : ''}
+            <div>
+              <div class="card-title">${esc(m.model) || "بدون مدل"}</div>
+              <div class="card-sub">${t("پلاک")}: ${esc(m.plate) || "-"}</div>
+            </div>
+          </div>
+          <span class="badge ${sold?'sold':''}">${sold?'فروخته‌شده':'موجود'}</span>
+        </div>
+        <div class="card-body">
+          <div><span>تاریخ خرید: </span>${fmtDate(m.buyDate)}</div>
+          <div><span>قیمت خرید: </span>${fmt(m.buyPrice)}</div>
+          ${m.fromWhom?`<div><span>از: </span>${esc(m.fromWhom)}</div>`:''}
+          <div><span>هزینه کل: </span>${fmt(costTotal(m))}</div>
+          <div><span>تاریخ فروش: </span>${sold?fmtDate(m.sellDate):"-"}</div>
+          <div><span>قیمت فروش: </span>${sold && m.sellPrice ? fmt(m.sellPrice) : "-"}</div>
+          ${sold && m.toWhom?`<div><span>به: </span>${esc(m.toWhom)}</div>`:''}
+        </div>
+        ${expLines}
+        ${m.notes?`<div class="notes-line">${esc(m.notes)}</div>`:''}
+        ${profitHtml}
+        <div class="actions">
+          <button onclick="editItem('${m.id}')">ویرایش</button>
+          <button class="del" onclick="deleteItem('${m.id}')">حذف</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+}
+
+function openForm(){
+  document.getElementById("formTitle").textContent = t("ثبت موتور جدید");
+  document.getElementById("editId").value = "";
+  ["plate","model","fromWhom","buyDate","buyPrice","notes","toWhom","sellDate","sellPrice","cameraInput","galleryInput"].forEach(id=>{
+    document.getElementById(id).value = "";
+  });
+  currentPhoto = "";
+  document.getElementById("photoPreview").style.display = "none";
+  document.getElementById("expList").innerHTML = "";
+  document.getElementById("soldCheck").checked = false;
+  toggleSoldFields();
+  document.getElementById("overlay").classList.add("open");
+}
+function closeForm(){ document.getElementById("overlay").classList.remove("open"); }
+
+function editItem(id){
+  const m = motors.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById("formTitle").textContent = t("ویرایش موتور");
+  document.getElementById("editId").value = m.id;
+  document.getElementById("plate").value = m.plate || "";
+  document.getElementById("model").value = m.model || "";
+  document.getElementById("cameraInput").value = "";
+  document.getElementById("galleryInput").value = "";
+  currentPhoto = m.photo || "";
+  const prev = document.getElementById("photoPreview");
+  if(currentPhoto){ prev.src = currentPhoto; prev.style.display = "block"; } else { prev.style.display = "none"; }
+  document.getElementById("fromWhom").value = m.fromWhom || "";
+  document.getElementById("buyDate").value = m.buyDate || "";
+  document.getElementById("buyPrice").value = m.buyPrice ? Number(m.buyPrice).toLocaleString("en-US") : "";
+  document.getElementById("expList").innerHTML = "";
+  (m.expenses||[]).forEach(e=>addExpenseRow(e.name, e.amount));
+  document.getElementById("notes").value = m.notes || "";
+  document.getElementById("toWhom").value = m.toWhom || "";
+  document.getElementById("sellDate").value = m.sellDate || "";
+  document.getElementById("sellPrice").value = m.sellPrice ? Number(m.sellPrice).toLocaleString("en-US") : "";
+  document.getElementById("soldCheck").checked = !!m.sold;
+  toggleSoldFields();
+  document.getElementById("overlay").classList.add("open");
+}
+async function deleteItem(id){
+  if(!confirm("این موتور حذف شود؟")) return;
+  try{ await motorsCollection.doc(id).delete(); }
+  catch(err){ alert("حذف ناموفق بود: " + fbErr(err)); }
+}
+async function saveItem(){
+  const id = document.getElementById("editId").value;
+  const sold = document.getElementById("soldCheck").checked;
+  const data = {
+    plate: document.getElementById("plate").value.trim(),
+    model: document.getElementById("model").value.trim(),
+    photo: currentPhoto,
+    fromWhom: document.getElementById("fromWhom").value.trim(),
+    buyDate: document.getElementById("buyDate").value,
+    buyPrice: parseAmount("buyPrice"),
+    expenses: readExpenses(),
+    notes: document.getElementById("notes").value.trim(),
+    sold: sold,
+    toWhom: sold ? document.getElementById("toWhom").value.trim() : "",
+    sellDate: sold ? document.getElementById("sellDate").value : "",
+    sellPrice: sold ? parseAmount("sellPrice") : "",
+  };
+  try{
+    if(id){
+      await motorsCollection.doc(id).update(data);
+    } else {
+      await motorsCollection.add(data);
+    }
+    closeForm();
+  } catch(err){
+    alert("ذخیره ناموفق بود: " + fbErr(err));
+  }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(motors, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "motorcycle-bookkeeping-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function importData(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev){
+    try{
+      const imported = JSON.parse(ev.target.result);
+      if(!Array.isArray(imported)) throw new Error("bad format");
+      let added = 0;
+      const key = x => [x.plate,x.model,x.buyDate,x.buyPrice].join("|");
+      const have = new Set(motors.map(key));
+      for(const m of imported){
+        const { id, ...rest } = m;
+        if(have.has(key(rest))) continue;
+        have.add(key(rest));
+        await motorsCollection.add(rest);
+        added++;
+      }
+      alert(added + " " + t("موتور بازیابی شد."));
+    }catch(err){
+      alert("بازیابی ناموفق بود: فایل نامعتبر است.");
+    }
+    e.target.value = "";
+  };
+  reader.readAsText(file);
+}
+
+let gexps = [], unsubG = null;
+const gsum = a => a.reduce((s,e)=>s+(Number(e.amount)||0),0);
+function esc(v){ return String(v==null?"":v).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function toEn(v){ return String(v).replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)); }
+function fbErr(err){
+  const m = {"auth/invalid-credential":"ایمیل یا رمز عبور اشتباه است.","auth/wrong-password":"ایمیل یا رمز عبور اشتباه است.","auth/user-not-found":"ایمیل یا رمز عبور اشتباه است.",
+  "auth/email-already-in-use":"این ایمیل قبلاً ثبت شده است.","auth/weak-password":"رمز عبور باید حداقل ۶ کاراکتر باشد.","auth/invalid-email":"ایمیل نامعتبر است.",
+  "auth/network-request-failed":"اتصال اینترنت برقرار نیست.","auth/too-many-requests":"تلاش زیاد؛ کمی بعد دوباره امتحان کنید.","permission-denied":"دسترسی مجاز نیست."};
+  return t(m[err && err.code] || "خطایی رخ داد. دوباره تلاش کنید.");
+}
+async function resetPass(){
+  const email = document.getElementById("authEmail").value.trim();
+  if(!email){ showAuthError("ابتدا ایمیل را وارد کنید."); return; }
+  try{ await auth.sendPasswordResetEmail(email); alert("لینک بازیابی رمز به ایمیل شما ارسال شد."); }catch(e){ showAuthError(fbErr(e)); }
+}
+function listenGexp(){
+  if(unsubG) unsubG();
+  unsubG = db.collection("users").doc(currentUser.uid).collection("generalExpenses").onSnapshot(sn=>{
+    gexps = sn.docs.map(d=>({id:d.id,...d.data()})); render(); renderGexpList();
+    if(document.getElementById("chartWrap").classList.contains("show")) renderChart();
+  });
+}
+function openG(){ document.getElementById("gOverlay").classList.add("open"); renderGexpList(); }
+function renderGexpList(){
+  const el = document.getElementById("gList");
+  const l = gexps.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  el.innerHTML = l.length ? l.map(e=>`<div style="display:flex;justify-content:space-between;gap:6px;padding:6px 0;border-bottom:1px solid var(--border);align-items:center">
+    <span>${esc(e.title)||"-"}<br><small style="color:var(--muted)">${fmtDate(e.date)}</small></span>
+    <span>${fmt(e.amount)} <button class="rm" style="background:transparent;color:var(--loss);border:1px solid var(--loss);padding:4px 8px" onclick="delGexp('${e.id}')">✕</button></span></div>`).join("")
+    + `<div style="margin-top:8px;font-weight:700">${t("جمع")}: ${fmt(gsum(l))} IDR</div>` : '<div class="empty">هنوز هزینه‌ای ثبت نشده</div>';
+}
+async function addGexp(){
+  const title = document.getElementById("gTitle").value.trim(), amount = parseAmount("gAmt"), date = document.getElementById("gDate").value;
+  if(!title || !amount || !date){ alert("عنوان، مبلغ و تاریخ را وارد کنید."); return; }
+  try{
+    await db.collection("users").doc(currentUser.uid).collection("generalExpenses").add({title, amount, date});
+    ["gTitle","gAmt","gDate"].forEach(i=>document.getElementById(i).value="");
+  }catch(e){ alert("ذخیره ناموفق بود: " + fbErr(e)); }
+}
+async function delGexp(id){
+  if(!confirm("این هزینه حذف شود؟")) return;
+  try{ await db.collection("users").doc(currentUser.uid).collection("generalExpenses").doc(id).delete(); }catch(e){ alert(fbErr(e)); }
+}
+function renderChart(){
+  const mo = {}, yr = {};
+  const add = (k,f,v)=>{ (mo[k]=mo[k]||{p:0,g:0})[f]+=v; const y=k.slice(0,4); (yr[y]=yr[y]||{p:0,g:0})[f]+=v; };
+  motors.forEach(m=>{ const p = profit(m); if(p!==null && m.sellDate) add(m.sellDate.slice(0,7),"p",p); });
+  gexps.forEach(e=>{ if(e.date) add(e.date.slice(0,7),"g",Number(e.amount)||0); });
+  const keys = Object.keys(mo).sort(), wrap = document.getElementById("chartWrap");
+  if(!keys.length){ wrap.innerHTML = '<div class="empty">هنوز داده‌ای برای گزارش نیست</div>'; return; }
+  const net = o => o.p - o.g;
+  const maxAbs = Math.max(...keys.map(k=>Math.abs(net(mo[k]))), 1);
+  const sg = v => (v<0?"-":"") + fmt(Math.abs(v));
+  wrap.innerHTML = '<div style="font-weight:700;font-size:.85rem">سود/زیان خالص ماهانه (میلادی)</div>' + keys.map(k=>{
+    const v = net(mo[k]);
+    return `<div class="chart-row"><div class="chart-label">${k}</div><div class="chart-bar-bg"><div class="chart-bar ${v<0?'neg':''}" style="width:${Math.min(100,Math.abs(v)/maxAbs*100)}%"></div></div><div class="chart-val">${sg(v)}</div></div>`;
+  }).join("") + '<div style="font-weight:700;font-size:.85rem;margin-top:12px">خلاصه سالانه</div>' + Object.keys(yr).sort().map(y=>{
+    const o = yr[y];
+    return `<div style="font-size:.8rem;margin-top:6px;border-top:1px solid var(--border);padding-top:6px"><b>${y}</b> — ${t("سود موتورها")}: ${sg(o.p)} | ${t("هزینه عمومی")}: ${fmt(o.g)} | <b style="color:var(--${net(o)>=0?'profit':'loss'})">${t("خالص")}: ${sg(net(o))}</b></div>`;
+  }).join("");
+}
+function statusOf(m){ return isSold(m) ? t("فروخته‌شده") : t("موجود"); }
+function exportCSV(){
+  const q = v => '"' + String(v==null?"":v).replace(/"/g,'""') + '"';
+  const head = ["پلاک","مدل","تاریخ خرید","قیمت خرید","سایر هزینه‌ها","هزینه کل","وضعیت","تاریخ فروش","قیمت فروش","سود/زیان"].map(x=>t(x));
+  const rows = motors.map(m=>[m.plate,m.model,m.buyDate,m.buyPrice,costTotal(m)-(Number(m.buyPrice)||0),costTotal(m),statusOf(m),m.sellDate,m.sellPrice,profit(m)]);
+  gexps.forEach(e=>rows.push(["",t("هزینه عمومی")+": "+e.title,e.date,"","",e.amount,"","","",-(Number(e.amount)||0)]));
+  const csv = "\ufeff" + [head,...rows].map(r=>r.map(q).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download = "motor-report-" + new Date().toISOString().slice(0,10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function printReport(){
+  const tot = motors.reduce((s,m)=>s+(profit(m)||0),0), g = gsum(gexps);
+  document.getElementById("printArea").innerHTML = `<h2>${t("گزارش حسابداری موتور")} — ${fmtDate(new Date().toISOString().slice(0,10))}</h2>
+  <table><tr><th>پلاک</th><th>مدل</th><th>خرید</th><th>هزینه کل</th><th>فروش</th><th>سود/زیان</th></tr>` +
+  motors.map(m=>{const p=profit(m);return `<tr><td>${esc(m.plate)}</td><td>${esc(m.model)}</td><td>${fmtDate(m.buyDate)}</td><td>${fmt(costTotal(m))}</td><td>${isSold(m)?fmtDate(m.sellDate)+" / "+fmt(m.sellPrice):"-"}</td><td>${p===null?"-":fmt(p)}</td></tr>`;}).join("") +
+  `</table><p>${t("سود موتورهای فروخته‌شده")}: ${fmt(tot)} IDR<br>${t("هزینه‌های عمومی")}: ${fmt(g)} IDR<br><b>${t("سود خالص")}: ${fmt(tot-g)} IDR</b></p>`;
+  trNode(document.getElementById("printArea")); window.print();
+}
+
+render();
+applyLang();
+new MutationObserver(ms=>{ if(LANG!=="fa") ms.forEach(m=>m.addedNodes.forEach(trNode)); }).observe(document.body,{childList:true,subtree:true});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("service-worker.js").catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
